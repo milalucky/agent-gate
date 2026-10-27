@@ -3,12 +3,14 @@
 Pushing JPEGs with Draw/SendHttpGif is known to knock the device off Wi-Fi, so we only send
 the tiny Device/PlayGif command and let the device fetch the picture itself.
 """
+import base64
 import hashlib
 import io
 import json
 import socket
 import subprocess
 import threading
+import time
 import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -59,6 +61,10 @@ class Device:
         self.ip = e.get("DIVOOM_IP", "")  # may be empty: then the daemon finds the gate by DIVOOM_MAC
         self.token = int(e["DIVOOM_TOKEN"])
         self.mac = e.get("DIVOOM_MAC", "").lower()
+        # "push" sends JPEG frames straight to the gate: a shorter loading hourglass, but pushing has been
+        # reported to knock the gate off Wi-Fi after a few hundred uploads. "pull" (default) is the safe path.
+        self.push = e.get("DIVOOM_TRANSPORT", "pull") == "push"
+        self.pic_id = 0
         self.files = {}
         self.fetched = {}
 
@@ -111,6 +117,18 @@ class Device:
             return True
         return False
 
+    def push_frames(self, screen: int, frames: list):
+        # IDs must only grow, even within one second.
+        self.pic_id = max(int(time.time()), self.pic_id + 1)
+        mask = [int(i == screen) for i in range(5)]
+        for offset, frame in enumerate(frames):
+            buf = io.BytesIO()
+            frame.convert("RGB").save(buf, "JPEG", quality=90)
+            self.command({"Command": "Draw/SendHttpGif", "LcdArray": mask, "PicNum": len(frames), "PicOffset": offset,
+                          "PicID": self.pic_id, "PicSpeed": frames[0].info.get("duration", 200), "PicWidth": 128,
+                          "PicData": base64.b64encode(buf.getvalue()).decode("ascii")})
+            time.sleep(0.1)  # the pacing the firmware is known to cope with
+
     def local_ip(self) -> str:
         try:
             with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
@@ -121,6 +139,8 @@ class Device:
 
     def show(self, screen: int, frames: list):
         """Show frames (a still or a looping animation) on screen 0-4; wait until the device fetched them."""
+        if self.push:
+            return self.push_frames(screen, frames)
         data = gif(frames)
         path = f"/{screen}-{hashlib.sha1(data).hexdigest()[:12]}.gif"
         # Keep only the latest picture per screen; a stale URL then 404s instead of piling up.

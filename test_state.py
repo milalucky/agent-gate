@@ -76,6 +76,10 @@ assert render.companion_emotion(done)[0] == "neutral", "a long-finished session 
 done["last_event"] = time.time() - render.BORED_AFTER - 1
 assert render.companion_emotion(done)[0] == "bored"
 assert len(render.companion_screen(s)) > 1
+limits.PATH.write_text(json.dumps({"accounts": {"x@example.com": {"five_hour": {"used_percentage": 49}}}}))
+s["account"] = "x@example.com"
+with_limit, without = render.companion_screen(s, show_limit=True), render.companion_screen(s)
+assert with_limit[0].tobytes() != without[0].tobytes(), "the 5-hour limit shows under the dispatcher"
 
 # Stale sessions disappear; the chat reports through the MCP tool.
 s["sessions"]["b"]["at"] = time.time() - state.STALE_AFTER - 1

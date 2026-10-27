@@ -162,25 +162,23 @@ def companion_emotion(s: dict):
     return "neutral", side
 
 
-SUMMARY = (("waiting_for_user", style.AMBER), ("busy", style.SKY), ("done", style.EMERALD), ("error", style.RED))
+def mini_limit(d, data: dict):
+    """The 5-hour limit under the dispatcher, for when sessions take every screen and no widget shows it."""
+    window = data.get("five_hour") or {}
+    used = window.get("used_percentage")
+    if not isinstance(used, (int, float)):
+        return
+    if isinstance(window.get("resets_at"), (int, float)) and window["resets_at"] <= time.time():
+        used = 0
+    colour = gauge_colour(used)
+    d.text((22, 100), "5ч", font=TEXT, fill=MUTED)
+    d.text((106, 96), f"{round(used)}%", font=NUM, fill=colour, anchor="ra")
+    d.rounded_rectangle((22, 118, 105, 122), radius=2, fill=style.mix(EDGE, 0.7))
+    if used > 0:
+        d.rounded_rectangle((22, 118, 22 + max(4, round(83 * min(used, 100) / 100)), 122), radius=2, fill=colour)
 
 
-def summary_bar(d, live: dict):
-    """The dispatcher's board: how many sessions wait for you, work, are done, failed. Dot + number each."""
-    counts = {}
-    for x in live.values():
-        key = "busy" if x["status"] in state.BUSY else x["status"]
-        counts[key] = counts.get(key, 0) + 1
-    items = [(counts[k], colour) for k, colour in SUMMARY if counts.get(k)]
-    width = sum(10 + NUM.getlength(str(n)) for n, _ in items) + 10 * (len(items) - 1)
-    x = 64 - width / 2
-    for n, colour in items:
-        d.ellipse((x, 110, x + 7, 117), fill=colour)
-        d.text((x + 10, 102), str(n), font=NUM, fill=colour)
-        x += 10 + NUM.getlength(str(n)) + 10
-
-
-def companion_screen(s: dict) -> list:
+def companion_screen(s: dict, show_limit: bool = False) -> list:
     emotion, side = companion_emotion(s)
     frames = robot.frames(emotion, label_it=False, level=state.level(s["done_total"])[0])
     if emotion in ("waving", "watching") and side == 1:
@@ -188,14 +186,14 @@ def companion_screen(s: dict) -> list:
     _, colour, label = robot.EMOTIONS[emotion]
     if emotion == "waving":
         label = "← эй!" if side == -1 else "эй! →"
-    live = state.live_sessions(s)
+    data = (limits.for_account(s.get("account")) or {}) if show_limit else {}
     for f in frames:
         if label:
             robot.label(f, label, colour)
-        elif live:
+        elif data:
             d = ImageDraw.Draw(f)
             d.fontmode = "1"
-            summary_bar(d, live)
+            mini_limit(d, data)
     return frames
 
 
@@ -308,7 +306,8 @@ def render_all(s: dict) -> list:
         if o and time.time() < o["until"]:
             out.append([overlay_screen(o["text"])])
         elif n == 3:
-            out.append(companion_screen(s))
+            # Every side screen busy with a session: the 5-hour limit moves under the dispatcher.
+            out.append(companion_screen(s, show_limit=all(m in live for m in state.SLOTS)))
         elif n in live:
             out.append(session_screen(live[n]))
         else:

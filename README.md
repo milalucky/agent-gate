@@ -18,7 +18,7 @@ Inspired by [Pixel Agents](https://github.com/pixel-agents-hq/pixel-agents) and 
 | Screen | Shows |
 |---|---|
 | Session (screens 2, 4, then 1, 5) | Project name, the robot in the pose of its status, and how long it has been in it |
-| Dispatcher (screen 3) | Waves toward a session that asks permission (or just finished), watches the working ones, keeps a board of how many sessions wait, work, are done or failed, celebrates long jobs, falls asleep after 30 quiet minutes |
+| Dispatcher (screen 3) | Waves toward a session that asks permission (or just finished), watches the working ones, celebrates long jobs, falls asleep after 30 quiet minutes. When sessions take all four side screens, it shows the 5-hour limit underneath |
 | 5-hour limit | Ring gauge, time to reset, and a forecast ("enough for 1h") when you burn it faster than it resets |
 | Weekly limit | Ring gauge and days to reset |
 | Activity | Claude's busy time per hour over the last 12 hours |
@@ -110,7 +110,7 @@ launchctl kickstart -k gui/$(id -u)/com.agentgate.daemon   # restart the daemon
 
 - **Screens show the Divoom clocks after a power cut.** The daemon notices within 15 s and resends everything once the gate is back online, which can take a minute or two.
 - **"Times Gate не отвечает" in the log.** Check the IP in the Divoom app. With `DIVOOM_MAC` set the daemon finds the gate itself; reserving its IP in the router fixes it for good.
-- **A loading hourglass before each update.** That is the Times Gate firmware fetching the picture. Agent Gate keeps updates rare; it cannot hide the hourglass itself.
+- **A loading hourglass before each update.** That is the Times Gate firmware. Agent Gate keeps updates rare. `DIVOOM_TRANSPORT=push` in `.env` sends frames straight to the gate, which shortens the hourglass, but pushing has been reported to knock the gate off Wi-Fi after many uploads (the daemon recovers on its own).
 - **Nothing appears for a session.** Make sure the hooks are in `~/.claude/settings.json` and the project folder is not in Desktop, Documents or Downloads.
 
 ## Files
