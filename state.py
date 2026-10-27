@@ -19,6 +19,7 @@ EMOTIONS = ("neutral", "happy", "waving", "bored", "surprised", "sad", "proud", 
 SLOTS = (2, 4, 1, 5)  # screens for sessions, nearest the companion first; screen 3 is the companion
 STALE_AFTER = 3 * 60 * 60  # a session silent this long is gone (closed app, killed process)
 REACTION_SECONDS = 20
+LOOKS = 6  # office corners (rooms.NAMES) and robot colours (robot.BODIES)
 LONG_TASK = 30 * 60
 
 
@@ -142,8 +143,13 @@ def update_session(sid: str, name: str, status: str, text: str = "", account: st
     if status not in STATUSES:
         raise StateError(f"Статус должен быть одним из: {', '.join(STATUSES)}")
     with mutate() as s:
-        sess = s["sessions"].setdefault(sid, {"name": _clean(name, 40), "status": None, "since": 0, "slot": None,
-                                              "account": account or None})
+        if sid not in s["sessions"]:
+            used = {x.get("look") for x in s["sessions"].values()}
+            # Office corner + robot colour: the first one no other session has, so screens never look alike.
+            look = next((n for n in range(LOOKS) if n not in used), len(s["sessions"]) % LOOKS)
+            s["sessions"][sid] = {"name": _clean(name, 40), "status": None, "since": 0, "slot": None,
+                                  "account": account or None, "look": look}
+        sess = s["sessions"][sid]
         if account:
             s["account"] = account
         if sess["slot"] is None:

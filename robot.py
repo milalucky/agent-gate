@@ -12,6 +12,8 @@ from style import BG, mix
 
 CREAM = (234, 216, 198)
 CREAM_SH = (190, 168, 150)
+# Shell tints, so every session's robot in the office is a different one.
+BODIES = (CREAM, (196, 232, 210), (222, 208, 244), (200, 222, 248), (248, 212, 190), (240, 230, 160))
 VISOR = (10, 10, 14)
 EAR = (110, 140, 190)
 EAR_HI = (175, 205, 245)
@@ -47,8 +49,11 @@ class Pen:
         return max(1, round(r * self.k))
 
 
-def draw_robot(pen, i, eyes="open", eye_c=EYE, flame_c=FLAME, hands="rest", look=0, dim=False, gold=False):
+def draw_robot(pen, i, eyes="open", eye_c=EYE, flame_c=FLAME, hands="rest", look=0, dim=False, gold=False,
+               body=None):
     d, p, box = pen.d, pen.p, pen.box
+    CREAM = body or globals()["CREAM"]
+    CREAM_SH = tuple(c * 4 // 5 for c in CREAM)
     flick, sway = [0, 2, 1, 3][i % 4], [0, 1, 0, -1][i % 4]
     if dim:
         flick, flame_c = flick // 2 - 3, mix(flame_c, 0.6)
@@ -185,9 +190,9 @@ def accessories(pen, i, level):
                 d.line([p(x, y - 3), p(x, y + 3)], fill=GOLD_HI)
 
 
-def animate(name, k, cx, top, background=None, level=1):
+def animate(name, k, cx, top, background=None, level=1, body=None):
     """Frames of animation `name` at scale k; `background(i)` returns (image, draw) to draw onto.
-    `level` dresses the robot with what it has unlocked (the companion only)."""
+    `level` dresses the robot with what it has unlocked (the companion only); `body` tints its shell."""
     count, ms, pose = ANIMATIONS[name]
     out = []
     for i in range(count):
@@ -199,7 +204,7 @@ def animate(name, k, cx, top, background=None, level=1):
             d = ImageDraw.Draw(img)
             d.fontmode = "1"
         pen = Pen(d, k, cx + dx, top + dy)
-        draw_robot(pen, i, gold=level >= 3, **kwargs)
+        draw_robot(pen, i, gold=level >= 3, body=body, **kwargs)
         accessories(pen, i, level)
         if extras:
             extras(pen, i)

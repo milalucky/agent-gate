@@ -24,9 +24,9 @@ Inspired by [Pixel Agents](https://github.com/pixel-agents-hq/pixel-agents) and 
 | Activity | Claude's busy time per hour over the last 12 hours |
 | Level | The robot levels up with every finished answer and unlocks blush, golden headphones, a scarf, a star badge and a glow |
 
-<img src="docs/statuses.png" width="100%">
+<img src="docs/office.png" width="100%">
 
-Session statuses: thinking, working, waiting for you, done, error. When Claude asks for permission, a badge shows what for: terminal, file edit, search, web, sub-agent or an MCP tool.
+Every session gets its own corner of the office (night city window, library, server rack with blinking lights, garden, whiteboard, coffee machine) and its own robot colour, so two sessions of the same project never look alike. Session statuses: thinking, working, waiting for you, done, error. When Claude asks for permission, a badge shows what for: terminal, file edit, search, web, sub-agent or an MCP tool.
 
 <img src="docs/badges.png" width="100%">
 
@@ -120,7 +120,8 @@ launchctl kickstart -k gui/$(id -u)/com.agentgate.daemon   # restart the daemon
 | `hook.py` | Claude Code hook: session statuses |
 | `state.py` | Shared state, sessions, accounts, levels |
 | `limits.py` | Claude usage limits via `/usage` |
-| `render.py`, `robot.py`, `style.py` | The screens, the robot, palette and fonts |
+| `render.py`, `robot.py`, `rooms.py`, `style.py` | The screens, the robot, the office corners, palette and fonts |
+| `make_docs.py` | Regenerates the pictures in `docs/` |
 | `device.py` | Times Gate transport: frame server + `Device/PlayGif` |
 | `daemon.py` | Main loop, run by launchd |
 | `mcp_server.py` | MCP server for Claude Desktop chats |

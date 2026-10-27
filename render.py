@@ -3,11 +3,13 @@
 Every screen keeps a few large words: Ark Pixel for Cyrillic labels, Departure Mono for figures.
 """
 import time
+import zlib
 
 from PIL import Image, ImageDraw, ImageOps
 
 import limits
 import robot
+import rooms
 import state
 import style
 from style import BG, CARD, EDGE, FAINT, FG, MUTED, NUM, NUM3, TEXT, TEXT2
@@ -121,15 +123,20 @@ def session_screen(sess: dict) -> list:
     name = fit(sess["name"], TEXT)
     timer = "" if status == "idle" else duration(time.time() - sess["since"])
 
+    # Every session has its own corner of the office and its own robot colour (state.update_session picks one
+    # no other session uses); sessions from before that get one from their name.
+    look = sess.get("look", zlib.crc32(sess["name"].encode()) % len(rooms.NAMES))
+
     def background(i):
         img, d = canvas()
+        rooms.draw(d, rooms.NAMES[look % len(rooms.NAMES)], i)
         d.text((64, 3), name, font=TEXT, fill=FG, anchor="ma")
         d.rounded_rectangle((6, 98, 121, 123), radius=8, fill=style.mix(colour, 0.18), outline=style.mix(colour, 0.5))
         d.text((13, 104), label, font=TEXT, fill=colour)
         d.text((115, 104), timer, font=TEXT, fill=FG, anchor="ra")
         return img, d
 
-    frames = robot.animate(robot.STATUSES[status], 0.74, 64, 20, background)
+    frames = robot.animate(robot.STATUSES[status], 0.74, 64, 20, background, body=robot.BODIES[look % len(robot.BODIES)])
     if status == "waiting_for_user":
         for f in frames:  # after the robot, so the badge covers its "?"
             tool_badge(ImageDraw.Draw(f), sess.get("text", ""), colour)
@@ -163,7 +170,8 @@ def companion_emotion(s: dict):
 
 
 def mini_limit(d, data: dict):
-    """The 5-hour limit under the dispatcher, for when sessions take every screen and no widget shows it."""
+    """The 5-hour limit in one row at the very bottom, under the dispatcher's feet, for when sessions take
+    every screen and no widget shows it."""
     window = data.get("five_hour") or {}
     used = window.get("used_percentage")
     if not isinstance(used, (int, float)):
@@ -171,11 +179,11 @@ def mini_limit(d, data: dict):
     if isinstance(window.get("resets_at"), (int, float)) and window["resets_at"] <= time.time():
         used = 0
     colour = gauge_colour(used)
-    d.text((22, 100), "5ч", font=TEXT, fill=MUTED)
-    d.text((106, 96), f"{round(used)}%", font=NUM, fill=colour, anchor="ra")
-    d.rounded_rectangle((22, 118, 105, 122), radius=2, fill=style.mix(EDGE, 0.7))
+    d.text((8, 112), "5ч", font=TEXT, fill=MUTED)
+    d.rounded_rectangle((28, 116, 88, 121), radius=2, fill=style.mix(EDGE, 0.7))
     if used > 0:
-        d.rounded_rectangle((22, 118, 22 + max(4, round(83 * min(used, 100) / 100)), 122), radius=2, fill=colour)
+        d.rounded_rectangle((28, 116, 28 + max(4, round(60 * min(used, 100) / 100)), 121), radius=2, fill=colour)
+    d.text((121, 112), f"{round(used)}%", font=TEXT, fill=colour, anchor="ra")
 
 
 def companion_screen(s: dict, show_limit: bool = False) -> list:
@@ -185,7 +193,9 @@ def companion_screen(s: dict, show_limit: bool = False) -> list:
         frames = [ImageOps.mirror(f) for f in frames]  # the robot is symmetric, only the gesture flips
     _, colour, label = robot.EMOTIONS[emotion]
     if emotion == "waving":
-        label = "← эй!" if side == -1 else "эй! →"
+        # "эй!" when a session asks permission, "готово" when it has just finished.
+        word = "эй!" if any(x["status"] == "waiting_for_user" for x in state.live_sessions(s).values()) else "готово"
+        label = f"← {word}" if side == -1 else f"{word} →"
     data = (limits.for_account(s.get("account")) or {}) if show_limit else {}
     for f in frames:
         if label:
