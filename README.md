@@ -18,7 +18,7 @@ Inspired by [Pixel Agents](https://github.com/pixel-agents-hq/pixel-agents) and 
 | Screen | Shows |
 |---|---|
 | Session (screens 2, 4, then 1, 5) | Project name, the robot in the pose of its status, and how long it has been in it |
-| Dispatcher (screen 3) | Waves toward a session that waits for you, celebrates long jobs, falls asleep after 30 quiet minutes |
+| Dispatcher (screen 3) | Waves toward a session that asks permission (or just finished), watches the working ones, keeps a board of how many sessions wait, work, are done or failed, celebrates long jobs, falls asleep after 30 quiet minutes |
 | 5-hour limit | Ring gauge, time to reset, and a forecast ("enough for 1h") when you burn it faster than it resets |
 | Weekly limit | Ring gauge and days to reset |
 | Activity | Claude's busy time per hour over the last 12 hours |

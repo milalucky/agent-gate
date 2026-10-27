@@ -150,6 +150,9 @@ ANIMATIONS = {
                                    lambda pen, i: [text(pen, 26 + t * 4, 14 - t * 6, "z", BLUE)
                                                    for t in range(1 + (i // 2) % 3)], 0, i // 4)),
     "wave": (4, 180, lambda i: (dict(eyes="joy", hands=[0, 6, 12, 6][i]), None, 0, 0)),
+    # The dispatcher keeping an eye on working sessions: looking one way, or scanning both sides.
+    "watch": (6, 420, lambda i: (dict(eyes="blink" if i == 4 else "open", look=-6), None, 0, 0)),
+    "scan": (8, 380, lambda i: (dict(eyes="open", look=[-6, -6, -6, 0, 6, 6, 6, 0][i]), None, 0, 0)),
     "surprised": (6, 100, lambda i: (dict(eyes="big"), lambda pen, i: text(pen, 32, 2, "!", YELLOW),
                                      [-2, 2, -2, 2, 0, 0][i], 0)),
     "sad": (6, 250, lambda i: (dict(eyes="sad", dim=True),
@@ -211,6 +214,8 @@ EMOTIONS = {
     "happy": ("success", GREEN, "ура!"),
     "proud": ("celebrate", YELLOW, "супер!"),
     "waving": ("wave", style.AMBER, "← эй!"),
+    "watching": ("watch", style.SKY, ""),
+    "scanning": ("scan", style.SKY, ""),
     "bored": ("offline", style.SLATE, ""),
     "surprised": ("surprised", RED, "ой!"),
     "sad": ("sad", TEAR, "эх…"),

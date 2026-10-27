@@ -12,9 +12,8 @@ import state
 import style
 from style import BG, CARD, EDGE, FAINT, FG, MUTED, NUM, NUM3, TEXT, TEXT2
 
-POINT_AT_DONE_FOR = 10 * 60  # a finished session keeps the companion's attention this long
+POINT_AT_DONE_FOR = 2 * 60  # a finished session gets pointed at briefly, then the dispatcher moves on
 BORED_AFTER = 30 * 60
-PROUD_DONE = 10  # finished turns in a day that make the companion celebrate
 LIMITS_FRESH = 15 * 60  # older limits get their age in the card title
 
 
@@ -140,33 +139,63 @@ def session_screen(sess: dict) -> list:
 # --- companion ---
 
 def companion_emotion(s: dict):
-    """(emotion, side): side is -1/1 when the companion points left/right at a session."""
+    """(emotion, side). The dispatcher waves only when a session needs you, otherwise it watches the
+    working ones; side is -1/1 for the screens left/right of it."""
     now = time.time()
     c = s["companion"]
     live = state.live_sessions(s)
     waiting = [n for n, x in live.items() if x["status"] == "waiting_for_user"]
     fresh_done = [n for n, x in live.items() if x["status"] == "done" and now - x["since"] < POINT_AT_DONE_FOR]
+    busy = {-1 if n < 3 else 1 for n, x in live.items() if x["status"] in state.BUSY}
     target = (waiting or fresh_done or [None])[0]
     side = -1 if target is None or target < 3 else 1
     if now < c["until"]:
         return c["emotion"], side
     if target is not None:
         return "waving", side
+    if len(busy) == 2:
+        return "scanning", 0
+    if busy:
+        return "watching", busy.pop()
     if now - s["last_event"] > BORED_AFTER:
         return "bored", side
-    return ("proud" if s["done_today"] >= PROUD_DONE else "neutral"), side
+    return "neutral", side
+
+
+SUMMARY = (("waiting_for_user", style.AMBER), ("busy", style.SKY), ("done", style.EMERALD), ("error", style.RED))
+
+
+def summary_bar(d, live: dict):
+    """The dispatcher's board: how many sessions wait for you, work, are done, failed. Dot + number each."""
+    counts = {}
+    for x in live.values():
+        key = "busy" if x["status"] in state.BUSY else x["status"]
+        counts[key] = counts.get(key, 0) + 1
+    items = [(counts[k], colour) for k, colour in SUMMARY if counts.get(k)]
+    width = sum(10 + NUM.getlength(str(n)) for n, _ in items) + 10 * (len(items) - 1)
+    x = 64 - width / 2
+    for n, colour in items:
+        d.ellipse((x, 110, x + 7, 117), fill=colour)
+        d.text((x + 10, 102), str(n), font=NUM, fill=colour)
+        x += 10 + NUM.getlength(str(n)) + 10
 
 
 def companion_screen(s: dict) -> list:
     emotion, side = companion_emotion(s)
     frames = robot.frames(emotion, label_it=False, level=state.level(s["done_total"])[0])
-    if emotion == "waving" and side == 1:
-        frames = [ImageOps.mirror(f) for f in frames]  # the robot is symmetric, only the wave flips
+    if emotion in ("waving", "watching") and side == 1:
+        frames = [ImageOps.mirror(f) for f in frames]  # the robot is symmetric, only the gesture flips
     _, colour, label = robot.EMOTIONS[emotion]
     if emotion == "waving":
         label = "← эй!" if side == -1 else "эй! →"
+    live = state.live_sessions(s)
     for f in frames:
-        robot.label(f, label, colour)
+        if label:
+            robot.label(f, label, colour)
+        elif live:
+            d = ImageDraw.Draw(f)
+            d.fontmode = "1"
+            summary_bar(d, live)
     return frames
 
 

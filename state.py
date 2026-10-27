@@ -15,7 +15,7 @@ DATA = Path(__file__).parent / "data"
 PATH = DATA / "state.json"
 
 STATUSES = ("idle", "thinking", "working", "waiting_for_user", "done", "error")
-EMOTIONS = ("neutral", "happy", "waving", "bored", "surprised", "sad", "proud")
+EMOTIONS = ("neutral", "happy", "waving", "bored", "surprised", "sad", "proud", "watching", "scanning")
 SLOTS = (2, 4, 1, 5)  # screens for sessions, nearest the companion first; screen 3 is the companion
 STALE_AFTER = 3 * 60 * 60  # a session silent this long is gone (closed app, killed process)
 REACTION_SECONDS = 20

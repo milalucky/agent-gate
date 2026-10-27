@@ -66,11 +66,16 @@ for x in s["sessions"].values():
 s["sessions"]["d"]["status"] = "waiting_for_user"
 assert render.companion_emotion(s) == ("waving", 1)
 s["sessions"]["d"]["status"] = "working"
-assert render.companion_emotion(s)[0] == "neutral"
-s["done_today"] = render.PROUD_DONE
-assert render.companion_emotion(s)[0] == "proud"
-s["last_event"] = time.time() - render.BORED_AFTER - 1
-assert render.companion_emotion(s)[0] == "bored"
+assert render.companion_emotion(s) == ("scanning", 0), "working sessions on both sides: it scans"
+for x in s["sessions"].values():
+    x["status"] = "working" if x["slot"] in (4, 5) else "idle"
+assert render.companion_emotion(s) == ("watching", 1), "only the right side works: it watches right"
+done = dict(s, sessions={k: dict(x, status="done", since=time.time() - render.POINT_AT_DONE_FOR - 1)
+                         for k, x in s["sessions"].items()})
+assert render.companion_emotion(done)[0] == "neutral", "a long-finished session is not pointed at forever"
+done["last_event"] = time.time() - render.BORED_AFTER - 1
+assert render.companion_emotion(done)[0] == "bored"
+assert len(render.companion_screen(s)) > 1
 
 # Stale sessions disappear; the chat reports through the MCP tool.
 s["sessions"]["b"]["at"] = time.time() - state.STALE_AFTER - 1
