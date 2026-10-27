@@ -53,11 +53,27 @@ for sid in "bcd":
     state.update_session(sid, sid, "working")
 assert {x["slot"] for x in state.load()["sessions"].values()} == {1, 2, 4, 5}
 state.update_session("e", "e", "waiting_for_user")
-assert state.load()["sessions"]["e"]["slot"] is None
-fire({"hook_event_name": "SessionEnd", "reason": "exit"})
-state.update_session("e", "e", "waiting_for_user")
 s = state.load()
-assert s["sessions"]["e"]["slot"] == 2 and "a" not in s["sessions"]
+assert s["sessions"]["e"]["slot"] == 2 and s["sessions"]["a"]["slot"] is None, "takes the finished session's screen"
+state.update_session("f", "f", "idle")
+assert state.load()["sessions"]["f"]["slot"] is None, "a merely open session never pushes anyone out"
+state.update_session("h", "h", "working")
+assert state.load()["sessions"]["h"]["slot"] is None, "all four busy: nobody gives up a screen"
+state.end_session("h")
+fire({"hook_event_name": "SessionEnd", "reason": "exit"})
+assert "a" not in state.load()["sessions"]
+
+# A working session takes the screen of the session that finished longest ago.
+state.update_session("c", "c", "done")
+state.update_session("b", "b", "done")
+state.update_session("g", "g", "working")
+s = state.load()
+assert s["sessions"]["g"]["slot"] is not None and s["sessions"]["c"]["slot"] is None and s["sessions"]["b"]["slot"]
+for sid in ("g", "f"):
+    state.end_session(sid)
+state.update_session("c", "c", "working")
+state.update_session("b", "b", "working")
+s = state.load()
 
 # Companion: points right at a waiting session on screen 4 or 5.
 s["companion"]["until"] = 0
@@ -118,7 +134,7 @@ assert len(screens) == 5 and all(len(f) > 1 for f in screens), "every screen in 
 
 # Busy time: a finished thinking/working spell lands in today's hours; turns feed the level.
 assert sum(state.busy_hours(state.load()).values()) > 0
-assert state.load()["done_total"] == 2  # session a and the long job
+assert state.load()["done_total"] == 4  # session a, the long job, b and c
 
 # No sessions: four different widgets around the companion, nothing empty or repeated.
 for sid in list(state.load()["sessions"]):

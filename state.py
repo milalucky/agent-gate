@@ -59,6 +59,10 @@ def rollover(s: dict):
     for sid, sess in list(s["sessions"].items()):
         if time.time() - sess["at"] > STALE_AFTER:
             del s["sessions"][sid]
+    for sess in s["sessions"].values():
+        if "look" not in sess:  # sessions from before the office: give each a corner nobody else has
+            used = {x.get("look") for x in s["sessions"].values()}
+            sess["look"] = next((n for n in range(LOOKS) if n not in used), 0)
 
 
 @contextmanager
@@ -109,6 +113,7 @@ def live_sessions(s: dict) -> dict:
 
 
 BUSY = ("thinking", "working")
+IDLE_LIKE = ("idle", "done")  # sessions that may give up their screen to an active one
 
 
 def _count_busy(s: dict, sess: dict):
@@ -156,11 +161,18 @@ def update_session(sid: str, name: str, status: str, text: str = "", account: st
             # Screens are shared between accounts: only the other sessions of this account hold one.
             # A session with no known account shows for everyone, so it holds its screen in every account.
             mine = sess.get("account")
-            taken = {x["slot"] for x in s["sessions"].values() if None in (mine, x.get("account"))
-                     or x.get("account") == mine}
-            free = [n for n in SLOTS if n not in taken]
-            # shortcut: a fifth session gets no screen until one frees up; add paging if that gets common
-            sess["slot"] = free[0] if free else None
+            holders = [x for x in s["sessions"].values() if x["slot"] and x is not sess
+                       and (None in (mine, x.get("account")) or x.get("account") == mine)]
+            free = [n for n in SLOTS if n not in {x["slot"] for x in holders}]
+            if free:
+                sess["slot"] = free[0]
+            elif status not in IDLE_LIKE:
+                # No screen left: an active session takes the one of a session that is merely open,
+                # else of the one that finished longest ago. Working and waiting sessions keep theirs.
+                spare = sorted((x for x in holders if x["status"] in IDLE_LIKE),
+                               key=lambda x: (x["status"] != "idle", x["at"]))
+                if spare:
+                    sess["slot"], spare[0]["slot"] = spare[0]["slot"], None
         if sess["status"] != status:
             _count_busy(s, sess)
             long_job = sess["status"] in BUSY and time.time() - sess["since"] > LONG_TASK

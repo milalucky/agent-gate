@@ -3,7 +3,6 @@
 Every screen keeps a few large words: Ark Pixel for Cyrillic labels, Departure Mono for figures.
 """
 import time
-import zlib
 
 from PIL import Image, ImageDraw, ImageOps
 
@@ -123,9 +122,8 @@ def session_screen(sess: dict) -> list:
     name = fit(sess["name"], TEXT)
     timer = "" if status == "idle" else duration(time.time() - sess["since"])
 
-    # Every session has its own corner of the office and its own robot colour (state.update_session picks one
-    # no other session uses); sessions from before that get one from their name.
-    look = sess.get("look", zlib.crc32(sess["name"].encode()) % len(rooms.NAMES))
+    # Every session has its own corner of the office and its own robot colour; state picks one no other uses.
+    look = sess.get("look", 0)
 
     def background(i):
         img, d = canvas()
